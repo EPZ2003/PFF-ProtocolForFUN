@@ -13,6 +13,15 @@
 export const MAGIC_BYTE = 0x69;
 export const HEADER_SIZE = 8 // 1 magic + 1cmd + 2 reqId + 4 len 
 
+//Command list 
+export const CMD_LOGIN = 0x01
+export const CMD_AUTH_OK = 0x02;
+
+export const CMD_PING = 0X03;
+export const CMD_PONG = 0x04;
+
+export const CMD_ERROR = 0x0FF;
+
 export interface Packet {
     command: number;
     requestId: number;
