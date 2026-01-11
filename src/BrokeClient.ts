@@ -8,7 +8,7 @@ const parser = new Parser();
 client.connect(3000, 'localhost',() => {
     console.log('Connected')
     //Send the login 
-    client.write(createPacket(CMD_LOGIN,1,{user:'Enzo le goat'}));
+    client.write(createPacket(CMD_LOGIN,1,1,{user:'Enzo le goat'}));
 });
 
 client.on('data',(chunk:Buffer) => {parser.append(chunk)})

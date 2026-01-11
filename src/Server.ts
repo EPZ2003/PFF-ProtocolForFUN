@@ -1,6 +1,6 @@
 import * as net from 'net'
 import { Parser } from './Parser';
-import { CMD_LOGIN, CMD_PING, CMD_PONG, createPacket } from './Packet';
+import { CMD_LOGIN, CMD_PING, CMD_PONG, createPacket, VERSION_PROTO } from './Packet';
 
 const server = net.createServer((socket) => {
     console.log(`New Client: ${socket.remoteAddress}`);
@@ -30,7 +30,7 @@ const server = net.createServer((socket) => {
         // Send PING 
         // We use reqID 0 because Ping don't need to be matched to a specific question 
         console.log(`[${socket.remoteAddress}] Sending PING...`)
-        socket.write(createPacket(CMD_PING,0,{}))
+        socket.write(createPacket(CMD_PING,0,2,{}))
 
     },5000)
 
@@ -41,6 +41,10 @@ const server = net.createServer((socket) => {
     });
 
     parser.on('data',(packet) => {
+        if (packet.version != VERSION_PROTO){
+            console.log(`not good version: v1${packet.version} instead of ${VERSION_PROTO}`);
+            socket.destroy()
+        }
         const strData = packet.payload.toString();
         console.log(`[CMD: ${packet.command}] [ID: ${packet.requestId}] Data: ${strData}`);
 
@@ -54,7 +58,7 @@ const server = net.createServer((socket) => {
         // Logic : If login (0x01), send sucess 
         if (packet.command === CMD_LOGIN){
             console.log("Handling Login...");
-            const response = createPacket(0x02, packet.requestId,{status: "Auth Sucess"})
+            const response = createPacket(0x02, packet.requestId,2,{status: "Auth Sucess"})
             socket.write(response)
         }  
     })
