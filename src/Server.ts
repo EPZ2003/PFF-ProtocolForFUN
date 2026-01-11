@@ -1,8 +1,14 @@
-import * as net from 'net'
+import * as tls from 'tls'
+import * as fs from 'fs';
 import { Parser } from './Parser';
-import { CMD_LOGIN, CMD_PING, CMD_PONG, createPacket, VERSION_PROTO } from './Packet';
+import { CMD_AUTH_OK, CMD_LOGIN, CMD_PING, CMD_PONG, createPacket, VERSION_PROTO } from './Packet';
 
-const server = net.createServer((socket) => {
+//1. Load the "IdCArd " and secret key
+const options: tls.TlsOptions = {
+    key: fs.readFileSync('server.key'),
+    cert: fs.readFileSync('server.cert'),
+};
+const server = tls.createServer(options,(socket) => {
     console.log(`New Client: ${socket.remoteAddress}`);
 
     //Each conncetions needs its OWN parser(stateful)
@@ -58,7 +64,7 @@ const server = net.createServer((socket) => {
         // Logic : If login (0x01), send sucess 
         if (packet.command === CMD_LOGIN){
             console.log("Handling Login...");
-            const response = createPacket(0x02, packet.requestId,2,{status: "Auth Sucess"})
+            const response = createPacket(CMD_AUTH_OK, packet.requestId,2,{status: "Auth Sucess LEZZZTOOO"})
             socket.write(response)
         }  
     })
@@ -76,4 +82,4 @@ const server = net.createServer((socket) => {
     
 });
 
-server.listen(3000,() => console.log('Server running on 3000'))
+server.listen(3000,() => console.log('🔒 Secure Server running on port 3000'))
