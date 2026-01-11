@@ -1,0 +1,37 @@
+/**
+ [  HEADER (8 Bytes Fixed)  ] [     PAYLOAD (Variable)    ]
++--------+------+-------+-------+----------------------------+
+| Magic  | Cmd  | ReqID |  Len  |      JSON / Binary Data    |
++--------+------+-------+-------+----------------------------+
+|  0x69  | 0x01 | 1234  |   24  |  {"user": "admin"} ...     |
++--------+------+-------+-------+----------------------------+
+  1 byte  1 byte 2 bytes 4 bytes      N bytes (defined in Len)
+ */
+
+
+// src/Packets.ts
+export const MAGIC_BYTE = 0x69;
+export const HEADER_SIZE = 8 // 1 magic + 1cmd + 2 reqId + 4 len 
+
+export interface Packet {
+    command: number;
+    requestId: number;
+    payload: Buffer;
+}
+
+// Helper to tunr a JSON object into a binary buffer ready for network 
+export function createPacket(command: number , requestId: number, data:object): Buffer {
+    //Convert data to buffer
+    const payload = Buffer.from(JSON.stringify(data));
+    //allocates 8 bytes for the header
+    const header = Buffer.alloc(HEADER_SIZE);
+
+    //Write the header
+    header.writeUInt8(MAGIC_BYTE, 0);       // Byte 0: Magic 
+    header.writeUInt8(command, 1);          // Byte 1: command 
+    header.writeUInt16BE(requestId, 2);     // Byte 2-3 (so 2 bytes = 2 octes = 2 x 8 bits = 16 )
+    header.writeUInt32BE(payload.length, 4) // Byte 4-7 (so 4 bytes = 4 octes = 4 x 8bits = 32)
+
+    //Return the packet in buffer with first the header then the payload (== data )
+    return Buffer.concat([header,payload])
+}
