@@ -1,8 +1,10 @@
 import * as tls from 'tls'
 import * as fs from 'fs';
 import { Parser } from './Parser';
-import { CMD_AUTH_OK, CMD_FILE_CHUNK, CMD_FILE_END, CMD_FILE_START, CMD_LOGIN, CMD_PING, CMD_PONG, createPacket, VERSION_PROTO } from './Packet';
+import { CMD_AUTH_OK, CMD_EXEC, CMD_EXEC_DATA, CMD_EXEC_EXIT, CMD_FILE_CHUNK, CMD_FILE_END, CMD_FILE_START, CMD_LOGIN, CMD_PING, CMD_PONG, createPacket, VERSION_PROTO } from './Packet';
 import path from 'path';
+//This is used to run a real terminal command
+import { spawn } from 'child_process';
 
 //1. Load the "IdCArd " and secret key
 const options: tls.TlsOptions = {
@@ -52,14 +54,18 @@ const server = tls.createServer(options,(socket) => {
 
     parser.on('data',(packet) => {
 
+        const strData = packet.payload.toString();
+        console.log(`[CMD: ${packet.command}] [ID: ${packet.requestId}] Data: ${strData}`);
+
         if (packet.version != VERSION_PROTO){
             console.log(`not good version: v1${packet.version} instead of ${VERSION_PROTO}`);
             socket.destroy()
+            return;
         }
 
         // -- FILE TRANSFER -- 
         //1. Start: Open the file 
-        if (packet.command === CMD_FILE_START){
+        else if (packet.command === CMD_FILE_START){
             const meta = JSON.parse(packet.payload.toString())
             const savePath = path.join(__dirname,'uploads',meta.filename);
 
@@ -90,24 +96,50 @@ const server = tls.createServer(options,(socket) => {
             }
         }
 
-        const strData = packet.payload.toString();
-        console.log(`[CMD: ${packet.command}] [ID: ${packet.requestId}] Data: ${strData}`);
-
-        
-
         //If it's a PONG, we don't need to do anythin specific.
         //The 'lastHeardFrom' update above already  saved them 
-        if (packet.command === CMD_PONG){
+        else if (packet.command === CMD_PONG){
             console.log(`[${socket.remoteAddress}] Received PONG (Client is healthy)`);
             return;
         }
 
         // Logic : If login (0x01), send sucess 
-        if (packet.command === CMD_LOGIN){
+        else if (packet.command === CMD_LOGIN){
             console.log("Handling Login...");
             const response = createPacket(CMD_AUTH_OK, packet.requestId,2,{status: "Auth Sucess LEZZZTOOO"})
             socket.write(response)
-        }  
+        }
+
+        else if(packet.command === CMD_EXEC){
+            const payload = JSON.parse(packet.payload.toString())
+            const commandText = payload.cmd;
+
+            console.log(`[Shell] 💻 Executing: ${commandText}`)
+
+            //1. run the command sagely
+            // 'shell:true' allows complex commands like "ls -la | grep .json"
+            const child = spawn(commandText,{shell:true})
+
+            //2. Stream STDOUT (Normal Output)
+            child.stdout.on('data', (data) =>{
+                //Send Output back to the client immediately 
+                socket.write(createPacket(CMD_EXEC_DATA,packet.requestId,2,data))
+            })
+            //3. Streeam STDERR (Error output)
+            child.stderr.on('data',(data)=>{
+                socket.write(createPacket(CMD_EXEC_DATA,packet.requestId,2,data))
+
+            })
+            //4. Handle exit 
+            child.on('close',(code)=>{
+                console.log(`[Shell] Command finished with code ${code}`);
+                socket.write(createPacket(CMD_EXEC_EXIT,packet.requestId,2,{code}))
+            })
+        }
+
+        return;
+
+        
     })
     // 4. CLEANUP 
     socket.on('close',()=> {

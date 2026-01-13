@@ -29,6 +29,10 @@ export const CMD_FILE_START = 0x10; //Payload : {filename:"image.png",size:1024}
 export const CMD_FILE_CHUNK = 0x11; //this is a slice of data, Payload: <Raw binary data>
 export const CMD_FILE_END = 0x12; // Payload {}
 
+export const CMD_EXEC = 0x30; //"Run this command"
+export const CMD_EXEC_DATA = 0x31; //"Output of the command" 
+export const CMD_EXEC_EXIT = 0X32; //"Command finished"
+
 export interface Packet {
     command: number;
     requestId: number;
