@@ -8,7 +8,7 @@ const parser = new Parser();
 client.connect(3000, 'localhost',() => {
     console.log('Connected')
     //Send the login 
-    client.write(createPacket(CMD_LOGIN,1,{user:'Enzo le goat'}));
+    client.write(createPacket(CMD_LOGIN,1,2,{user:'Enzo le goat'}));
 });
 
 client.on('data',(chunk:Buffer) => {parser.append(chunk)})
@@ -19,7 +19,7 @@ parser.on('data', (packet) => {
         console.log("Client] Server asked PING? Sending PONG!")
 
         //Reply immediately
-        const pongPacket = createPacket(CMD_PONG, 0, {})
+        const pongPacket = createPacket(CMD_PONG, 0,2, {})
         client.write(pongPacket)
         console.log("Client] pong sended!")
         return;

@@ -10,7 +10,7 @@
 // 2 bytes = 16 bit = 2^16 = 65536
 
 import {EventEmitter} from "events";
-import { HEADER_SIZE, MAGIC_BYTE } from "./Packet";
+import { HEADER_SIZE, MAGIC_BYTE, VERSION_PROTO } from "./Packet";
 
 export class Parser extends EventEmitter{
 
@@ -58,14 +58,15 @@ export class Parser extends EventEmitter{
             if (magic != MAGIC_BYTE){
                 this.emit('error', new Error('Invalid Protocol Magic'));
                 return; 
-            } 
-
+            }
             const command = this.buffer.readUInt8(1);
             const requestId = this.buffer.readUInt16BE(2);
+            const version = this.buffer.readUInt8(3)
+
             const payload = this.buffer.subarray(HEADER_SIZE,totalMsgLen)
 
             //4/ emit parsed data 
-            this.emit('data',{command,requestId,payload})
+            this.emit('data',{command,requestId,version,payload})
 
             //5. "Cut" this message of the buffer and loop again 
             // In our case that means that it will erased memory allocated for the header and the payload
