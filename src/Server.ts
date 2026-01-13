@@ -1,8 +1,15 @@
-import * as net from 'net'
+import * as tls from 'tls'
+import * as fs from 'fs';
 import { Parser } from './Parser';
-import { CMD_LOGIN, CMD_PING, CMD_PONG, createPacket, VERSION_PROTO } from './Packet';
+import { CMD_AUTH_OK, CMD_FILE_CHUNK, CMD_FILE_END, CMD_FILE_START, CMD_LOGIN, CMD_PING, CMD_PONG, createPacket, VERSION_PROTO } from './Packet';
+import path from 'path';
 
-const server = net.createServer((socket) => {
+//1. Load the "IdCArd " and secret key
+const options: tls.TlsOptions = {
+    key: fs.readFileSync('server.key'),
+    cert: fs.readFileSync('server.cert'),
+};
+const server = tls.createServer(options,(socket) => {
     console.log(`New Client: ${socket.remoteAddress}`);
 
     //Each conncetions needs its OWN parser(stateful)
@@ -12,6 +19,9 @@ const server = net.createServer((socket) => {
     //1. Health check State
     let lastHeardFrom = Date.now()
     let isAlive = true;
+
+    //For file transfer
+    let writeStream: fs.WriteStream | null = null;
 
     //2. The heartbeat loop (Every 5s)
     const intervealId = setInterval(() => {
@@ -41,12 +51,49 @@ const server = net.createServer((socket) => {
     });
 
     parser.on('data',(packet) => {
+
         if (packet.version != VERSION_PROTO){
             console.log(`not good version: v1${packet.version} instead of ${VERSION_PROTO}`);
             socket.destroy()
         }
+
+        // -- FILE TRANSFER -- 
+        //1. Start: Open the file 
+        if (packet.command === CMD_FILE_START){
+            const meta = JSON.parse(packet.payload.toString())
+            const savePath = path.join(__dirname,'uploads',meta.filename);
+
+            // Ensure folder exists, if it doesn't it creates it 
+            if (!fs.existsSync(path.join(__dirname,'uploads'))){
+                fs.mkdirSync(path.join(__dirname,'uploads'));
+            }
+
+            console.log(`[File] Incoming file: ${meta.filename}`);
+            //Writing the heder in the tope of the file within the uploads fodler
+            writeStream = fs.createWriteStream(savePath)
+
+            
+        }
+        // 2. CHUNK: Glue it on 
+        else if (packet.command === CMD_FILE_CHUNK){
+                if (writeStream){
+                    //adding false data
+                    writeStream.write(packet.payload)
+                }
+        }
+
+        else if (packet.command === CMD_FILE_END){
+            console.log("[File] Upload Complete.");
+            if (writeStream){
+                writeStream.end();
+                writeStream = null;
+            }
+        }
+
         const strData = packet.payload.toString();
         console.log(`[CMD: ${packet.command}] [ID: ${packet.requestId}] Data: ${strData}`);
+
+        
 
         //If it's a PONG, we don't need to do anythin specific.
         //The 'lastHeardFrom' update above already  saved them 
@@ -58,7 +105,7 @@ const server = net.createServer((socket) => {
         // Logic : If login (0x01), send sucess 
         if (packet.command === CMD_LOGIN){
             console.log("Handling Login...");
-            const response = createPacket(0x02, packet.requestId,2,{status: "Auth Sucess"})
+            const response = createPacket(CMD_AUTH_OK, packet.requestId,2,{status: "Auth Sucess LEZZZTOOO"})
             socket.write(response)
         }  
     })
@@ -76,4 +123,4 @@ const server = net.createServer((socket) => {
     
 });
 
-server.listen(3000,() => console.log('Server running on 3000'))
+server.listen(3000,() => console.log('🔒 Secure Server running on port 3000'))

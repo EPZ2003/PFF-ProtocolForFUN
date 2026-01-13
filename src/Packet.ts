@@ -25,6 +25,10 @@ export const CMD_PONG = 0x04;
 
 export const CMD_ERROR = 0x0FF;
 
+export const CMD_FILE_START = 0x10; //Payload : {filename:"image.png",size:1024}
+export const CMD_FILE_CHUNK = 0x11; //this is a slice of data, Payload: <Raw binary data>
+export const CMD_FILE_END = 0x12; // Payload {}
+
 export interface Packet {
     command: number;
     requestId: number;
@@ -34,8 +38,16 @@ export interface Packet {
 
 // Helper to tunr a JSON object into a binary buffer ready for network 
 export function createPacket(command: number , requestId: number, version:number,data:object): Buffer {
-    //Convert data to buffer
-    const payload = Buffer.from(JSON.stringify(data));
+    
+    let payload: Buffer;
+     //data is already a buffer
+    if (Buffer.isBuffer(data)){
+        payload = data
+    }else {
+         //Convert data to buffer
+        payload = Buffer.from(JSON.stringify(data));
+    }
+
     //allocates 8 bytes for the header
     const header = Buffer.alloc(HEADER_SIZE);
 
